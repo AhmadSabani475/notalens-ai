@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import Optional
-import easyocr
+import pytesseract
 import cv2
 import numpy as np
 import re
@@ -25,7 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-reader = easyocr.Reader(['id', 'en'], gpu=False)
 
 def preprocess_image(img_array):
     gray = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
@@ -183,9 +182,31 @@ def parse_receipt_v3(ocr_results):
     return parsed
 
 def ocr_pipeline(img_array):
+    """OCR pipeline pakai Tesseract — ringan & cepat"""
+
+    # Preprocessing
     processed = preprocess_image(img_array)
-    results = reader.readtext(processed)
-    return parse_receipt_v3(results)
+
+    # Convert ke PIL Image
+    pil_img = Image.fromarray(processed)
+
+    # Jalankan Tesseract
+    # lang='ind+eng' = Bahasa Indonesia + English
+    raw_text = pytesseract.image_to_string(
+        pil_img,
+        lang='ind+eng',
+        config='--psm 6'  # PSM 6 = assume single block of text
+    )
+
+    # Convert ke format yang sama seperti EasyOCR
+    lines = raw_text.split('\n')
+    ocr_results = [
+        (None, line.strip(), 0.99)
+        for line in lines
+        if line.strip()
+    ]
+
+    return parse_receipt_v3(ocr_results)
 
 def export_to_excel(ocr_jobs, event_id=None):
     wb = Workbook()
