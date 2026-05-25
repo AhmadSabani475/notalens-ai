@@ -1,3 +1,34 @@
+import subprocess
+import sys
+import os
+
+# Install tesseract jika belum ada
+def install_tesseract():
+    try:
+        result = subprocess.run(['tesseract', '--version'], 
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            print("✅ Tesseract sudah terinstall!")
+            return True
+    except FileNotFoundError:
+        pass
+    
+    print("🔄 Installing tesseract...")
+    # Coba install via apt (Debian/Ubuntu)
+    cmds = [
+        ['apt-get', 'update', '-y'],
+        ['apt-get', 'install', '-y', 'tesseract-ocr', 'tesseract-ocr-ind'],
+    ]
+    for cmd in cmds:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        print(result.stdout)
+        if result.returncode != 0:
+            print(f"❌ Gagal: {result.stderr}")
+            return False
+    print("✅ Tesseract berhasil diinstall!")
+    return True
+
+install_tesseract()
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse

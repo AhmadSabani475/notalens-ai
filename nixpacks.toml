@@ -1,8 +1,11 @@
 [phases.setup]
-nixPkgs = ["tesseract4", "leptonica"]
+nixPkgs = []
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["apt-get update -y && apt-get install -y tesseract-ocr tesseract-ocr-ind || true"]
 
 [start]
 cmd = "uvicorn main:app --host 0.0.0.0 --port $PORT"
