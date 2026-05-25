@@ -15,9 +15,36 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
+import pytesseract
+import os
 
-app = FastAPI(title="NotaLens OCR API", version="1.0.0")
+# Lokasi Tesseract di Nixpacks/Railway
+tesseract_paths = [
+    "/usr/bin/tesseract",
+    "/usr/local/bin/tesseract",
+    "/nix/store/bin/tesseract",
+]
 
+# Cari lokasi yang ada
+for path in tesseract_paths:
+    if os.path.exists(path):
+        pytesseract.pytesseract.tesseract_cmd = path
+        print(f"✅ Tesseract ditemukan di: {path}")
+        break
+else:
+    # Cari otomatis pakai which
+    import subprocess
+    result = subprocess.run(['which', 'tesseract'], capture_output=True, text=True)
+    if result.stdout.strip():
+        pytesseract.pytesseract.tesseract_cmd = result.stdout.strip()
+        print(f"✅ Tesseract ditemukan di: {result.stdout.strip()}")
+    else:
+        print("⚠️ Tesseract tidak ditemukan!")
+
+app = FastAPI(title="NotaLens OCR API", version="3.0.0")
+
+# Storage sementara
+ocr_jobs = {}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,7 +52,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+@app.get("/debug")
+def debug():
+    import subprocess
+    which = subprocess.run(['which', 'tesseract'], capture_output=True, text=True)
+    find = subprocess.run(['find', '/nix', '-name', 'tesseract', '-type', 'f'], 
+                         capture_output=True, text=True)
+    version = subprocess.run(['tesseract', '--version'], capture_output=True, text=True)
+    return {
+        "which": which.stdout.strip(),
+        "find_nix": find.stdout.strip(),
+        "version": version.stdout.strip() or version.stderr.strip()
+    }
 def preprocess_image(img_array):
     gray = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
     denoised = cv2.fastNlMeansDenoising(gray, h=10)
